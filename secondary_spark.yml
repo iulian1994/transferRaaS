@@ -1,0 +1,68 @@
+heat_template_version: 2018-08-31
+
+parameters:
+ network:
+   type: string
+   
+ name:
+   type: string
+   
+ keyname:
+   type: string
+   description: Name of keypair to be used for compute instance
+
+ flavor:
+   type: string
+   default: m1.tiny
+
+ image:
+   type: string
+   description: Ubuntu_18.04_LTS
+   default: 1af63686-fc5a-4d62-8c5d-02216086d248
+   constraints:
+   - custom_constraint: glance.image
+     description: Must identify an image known to Glance
+     
+ storage_volume_size:
+   type: number
+   description: Size of the volume to be created for storage node.
+   default: 50
+
+
+resources:
+
+ volume:
+  type: OS::Cinder::Volume
+  properties:
+    size: { get_param: storage_volume_size }
+
+ volume_attachment:
+  type: OS::Cinder::VolumeAttachment
+  properties:
+    volume_id: { get_resource: volume }
+    instance_uuid: { get_resource: instance }
+    mountpoint: /dev/vdb
+
+ instance:
+   type: OS::Nova::Server
+   properties:
+     key_name: { get_param: keyname }
+     image: { get_param: image }
+     flavor: { get_param: flavor }
+     name: { get_param: name }
+     networks:
+       - network: { get_param: network }
+     user_data_format: RAW
+     user_data:
+       str_replace:
+         template: |
+           #cloud-config
+           apt_update: true
+           #apt_upgrade: true
+
+           # Install packages at will
+           packages:
+             - ntp
+           fs_setup:
+            - device: /dev/vdb
+              filesystem: ext4
